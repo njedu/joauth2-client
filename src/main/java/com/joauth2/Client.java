@@ -57,7 +57,7 @@ public class Client{
 	 * 获取授权码
 	 * @return
 	 */
-    public static String getCode() {
+    public static synchronized String getCode() {
 
     	String clientId = props.getStr("auth.app_key");
         String redirectUri = props.getStr("auth.redirect_uri");
@@ -106,7 +106,7 @@ public class Client{
      * @param code 授权码
      * @return
      */
-    public static String getToken(String code){
+    public static synchronized String getToken(String code){
         String clientId = props.getStr("auth.app_key");
         String clientSecret = props.getStr("auth.app_secret");
         String requestUrl = props.getStr("auth.url") + "/access_token";
@@ -166,6 +166,7 @@ public class Client{
 		CronUtil.schedule("*/1 * * * * *", new Task() {
 			@Override
 			public void execute() {
+			synchronized (this) {
 				// 判断是否是间隔的结束时间
 				Date now = new Date();
 				if (END_TIME == null || END_TIME.getTime() < now.getTime()) {
@@ -175,6 +176,7 @@ public class Client{
 						log.info(JOAuthListener.getMESSAGE());
 					}
 				}
+			}
 			}
 		});
 		CronUtil.setMatchSecond(true);

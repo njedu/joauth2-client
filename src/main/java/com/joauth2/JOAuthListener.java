@@ -63,12 +63,14 @@ public class JOAuthListener implements HttpSessionListener, HttpSessionAttribute
 		}
 		Client.MESSAGE_TMP = MESSAGE;
 		log.info(MESSAGE);
-		
-		// 初始化登录记录
+
+		// 初始化应用
 		ClientLogin.initApp();
 
-		// 开启定时任务-刷新Token
-		Client.refreshToken();
+		if (!Client.OFFLINE) {
+			// 开启定时任务-刷新Token
+			Client.refreshToken();
+		}
 	}
 	
 	@Override

@@ -35,14 +35,14 @@ public class ClientDog {
         Props properties = Client.props;
         
         try {
-            codetype = Integer.valueOf(DESUtils.desDecode(properties.getProperty("dog.codetype"), pk));
-            decode = Long.valueOf(DESUtils.desDecode(properties.getProperty("dog.decode"), pk));
-            encode = Long.valueOf(DESUtils.desDecode(properties.getProperty("dog.encode"), pk));
-            beginpwd = DESUtils.desDecode(properties.getProperty("dog.beginpwd"), pk);
-            endpwd = DESUtils.desDecode(properties.getProperty("dog.endpwd"), pk);
-            lockid = properties.getProperty("dog.lockid");
+            codetype = Integer.valueOf(DESUtils.desDecode(properties.getStr("dog.codetype"), pk));
+            decode = Long.valueOf(DESUtils.desDecode(properties.getStr("dog.decode"), pk));
+            encode = Long.valueOf(DESUtils.desDecode(properties.getStr("dog.encode"), pk));
+            beginpwd = DESUtils.desDecode(properties.getStr("dog.beginpwd"), pk);
+            endpwd = DESUtils.desDecode(properties.getStr("dog.endpwd"), pk);
+            lockid = properties.getStr("dog.lockid");
         } catch (Exception e) {
-            log.error("加密狗配置文件读取失败！");
+            JOAuthListener.setMESSAGE("加密狗配置文件读取失败");
         }
     }
 
@@ -59,17 +59,17 @@ public class ClientDog {
         // 判断系统中是否存在着加密锁。不需要是指定的加密锁,
         DevicePath = j9.FindPort(0);
         if (j9.get_LastError() != 0) {
-            log.error("未找到加密锁,请插入加密锁后，再进行操作。");
+            JOAuthListener.setMESSAGE("未找到加密锁,请插入加密锁后，再进行操作");
             return;
         }
 
 		DevicePath = j9.FindPort_2(codetype, decode, encode);
 		if (j9.get_LastError() != 0) {
 			nodog = true;
-			log.info("未找到指定的加密锁");
+            JOAuthListener.setMESSAGE("未找到指定的加密锁");
 		} else {
 			nodog = false;
-			log.info("成功找到指定的加密锁");
+            log.info("成功找到指定的加密锁");
 		}
 
 		// 校验锁ID
@@ -81,7 +81,7 @@ public class ClientDog {
 		short address = 0;// 要读取的数据在加密锁中储存的起始地址
 		short len = 3;// 要读取20个字节的数据
 		if (j9.YReadEx(address, len, beginpwd, endpwd, DevicePath) != 0) {
-			log.info("读取储存器失败");
+            JOAuthListener.setMESSAGE("读取储存器失败");
 			return;
 		}
 		short[] buf = new short[3];
@@ -96,8 +96,13 @@ public class ClientDog {
 			}
 
 		}
-		log.info("加密狗加载成功！");
-		Client.MAX_USER = Integer.valueOf(sb.toString());
+        JOAuthListener.setMESSAGE("加密狗加载成功！");
+		int cnt = Integer.valueOf(sb.toString());
+		log.info("加密狗数据解析：" + cnt);
+		if (cnt == 0) {
+            JOAuthListener.setMESSAGE(OAuth2Constants.INVALID_MAX_USER);
+        }
+		Client.MAX_USER = cnt;
     }
 
     /**
@@ -111,23 +116,20 @@ public class ClientDog {
         String dogId = null;
         long dogId1 = j9.GetID_1(DevicePath); // 前半部分
         if (j9.get_LastError() != 0) {
-            log.info("加密狗ID读取失败，错误码：{}", j9.get_LastError());
+            JOAuthListener.setMESSAGE("加密狗ID读取失败，错误码：" + j9.get_LastError());
             return false;
         }
         long dogId2 = j9.GetID_2(DevicePath); // 后半部分
         if (j9.get_LastError() != 0) {
-            log.info("加密狗ID读取失败，错误码：{}", j9.get_LastError());
+            JOAuthListener.setMESSAGE("加密狗ID读取失败，错误码：" + j9.get_LastError());
             return false;
         }
         dogId = (Long.toHexString(dogId1) + Long.toHexString(dogId2)).toUpperCase();
-        log.info(dogId);
         String encodeDogId = SecureUtil.md5(dogId).toUpperCase();
-        log.info("加密后锁ID：{}", encodeDogId);
         if (StrUtil.equals(encodeDogId, lockid)) {
-            log.info("加密狗ID读取成功");
             return true;
         }
-        log.info("加密狗ID校验失败！");
+        JOAuthListener.setMESSAGE("加密狗ID校验失败");
         return false;
     }
 }

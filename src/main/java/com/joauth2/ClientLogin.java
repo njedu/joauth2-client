@@ -53,14 +53,13 @@ public class ClientLogin {
             return new R(500, "当前账户已登录，无法再次登录");
         }
 
+        if (Client.MAX_USER == 0) {
+            return new R(500, JOAuthListener.getMESSAGE() + "，无法登录");
+        }
+
         // 检查授权许可
-        if (Client.MAX_USER == 0 || Client.TOTAL_USER + 1 > Client.MAX_USER) {
-            String msg = JOAuthListener.getMESSAGE() + "，无法登录";
-            if (Client.TOTAL_USER + 1 > Client.MAX_USER) {
-                msg = "超过最大用户限制，无法登录";
-            }
-            //ClientLogin.logout(user.getId(), session, user.getSessionAttrName());
-            return new R(500, msg);
+        if (Client.TOTAL_USER + 1 > Client.MAX_USER) {
+            return new R(500, "超过最大用户限制，无法登录");
         }
 
         // 保存内部登录数据
@@ -135,13 +134,16 @@ public class ClientLogin {
      * 程序重启时强制下线所有的登录记录
      */
     public static void initApp() {
-        String requestUrl = Client.props.getStr("auth.url") + "/login_record/init";
-        Map<String, Object> params = MapUtil.newHashMap();
-        params.put("app_key", Client.props.getStr("auth.app_key"));
-        JSONObject resultJson = Client.doPost(requestUrl, params);
-        if (resultJson.getInt("code") != 10000) {
-            log.info(resultJson.getStr("message"));
+        if (!Client.OFFLINE) {
+            String requestUrl = Client.props.getStr("auth.url") + "/login_record/init";
+            Map<String, Object> params = MapUtil.newHashMap();
+            params.put("app_key", Client.props.getStr("auth.app_key"));
+            JSONObject resultJson = Client.doPost(requestUrl, params);
+            if (resultJson.getInt("code") != 10000) {
+                log.info(resultJson.getStr("message"));
+            }
         }
+
         Client.TOTAL_USER = 0;
         userSessionMap = new ConcurrentHashMap<String, String>();
     }

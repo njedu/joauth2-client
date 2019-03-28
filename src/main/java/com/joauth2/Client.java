@@ -209,7 +209,7 @@ public class Client{
 
 		OFFLINE = true;
 
-		// 内网IP检查
+		/*// 内网IP检查
 		String innerIp = MapUtil.getStr(appMap, "innetIp");
 		String localIp = AuthSecureUtils.getInnetIp();
 		if (!StrUtil.equals(innerIp, localIp)) {
@@ -231,12 +231,10 @@ public class Client{
 
 		// 最大登录人数检查
 		int maxUser = MapUtil.getInt(appMap, "maxUser");
-		MAX_USER = maxUser;
+		MAX_USER = maxUser;*/
 
-		// 加密狗
-		//ClientDog.init();
-
-		JOAuthListener.setMESSAGE("JOAuth2授权服务（离线模式）装载成功！");
+		// 离线模式使用加密狗
+		ClientDog.init();
 		return true;
 	}
 

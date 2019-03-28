@@ -14,6 +14,7 @@ import javax.servlet.http.HttpSession;
 import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * 客户端登录方法处理
@@ -25,6 +26,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ClientLogin {
 
     private static Log log = LogFactory.get(ClientLogin.class);
+
+    public static ConcurrentMap<String, String> userSessionMap = new ConcurrentHashMap<String, String>();
 
     /**
      * 登录
@@ -142,8 +145,6 @@ public class ClientLogin {
         Client.TOTAL_USER = 0;
         userSessionMap = new ConcurrentHashMap<String, String>();
     }
-
-    public static ConcurrentHashMap<String, String> userSessionMap = new ConcurrentHashMap<String, String>();
 
     /**
      * 	是否存在已登录用户

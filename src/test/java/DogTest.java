@@ -12,7 +12,7 @@ public class DogTest {
 
     @Test
     public void testDog(){
-        ClientDog.init();
+        //ClientDog.init();
     }
 
 }

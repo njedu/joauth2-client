@@ -39,6 +39,8 @@ public class Client{
 	public static String MESSAGE_TMP = "";
 
 	public static Props props;
+	// Cron的ID
+	private static String CRON_ID = null;
 
 	static {
 		try {
@@ -91,10 +93,8 @@ public class Client{
         
         JSONObject resultJson = JSONUtil.parseObj(result);
         if (resultJson.containsKey("code") ) {
-        	if (resultJson.getInt("code") == 10021) {
+        	if (resultJson.getInt("code") != 10000) {
         		return errorCommonHandle(resultJson);
-			} else if (resultJson.getInt("code") == 926) {
-				return result;
 			}
 		}
         
@@ -120,7 +120,7 @@ public class Client{
 
         // 发起post请求
         JSONObject resultJson = doPost(requestUrl, params);
-        if (resultJson.containsKey("code") && resultJson.getInt("code") == 10021) {
+        if (resultJson.getInt("code") != 10000) {
         	return errorCommonHandle(resultJson);
 		}
         
@@ -146,15 +146,38 @@ public class Client{
 	 * @param resultJson
 	 * @return
 	 */
-	private static String errorCommonHandle(JSONObject resultJson){
-		String msg = resultJson.getStr("message");
+	public static String errorCommonHandle(JSONObject resultJson){
+		String msg = resultJson.getStr("msg");
 		JOAuthListener.setMESSAGE(msg);
 		JOAuthListener.canEncrypt = false;
 		MAX_USER = 0;
-		ClientLogin.initApp();
-		if (resultJson.containsKey("data")) {
-			setEndTime(resultJson.getJSONObject("data").getInt("expires_in"));
+
+		// 授权间隔异常 -> 移除定时任务 -> 终止授权
+		if (resultJson.getInt("code") == 403) {
+			setEndTime(2592000);
+			try {
+				CronUtil.remove(CRON_ID);
+				CronUtil.stop();
+			} catch (Exception e) {}
 		}
+		// 应用被冻结
+		/*else if (resultJson.getInt("code") == 926) {
+			ClientLogin.initApp();
+			int expireIn = 60;
+			if (resultJson.containsKey("object") && resultJson.getJSONObject("object").containsKey("expire_in")) {
+				expireIn = resultJson.getJSONObject("object").getInt("expires_in");
+			}
+			setEndTime(expireIn);
+		}*/
+		else {
+			ClientLogin.initApp();
+			int expireIn = 60;
+			if (resultJson.containsKey("object") && resultJson.getJSONObject("object").containsKey("expire_in")) {
+				expireIn = resultJson.getJSONObject("object").getInt("expires_in");
+			}
+			setEndTime(expireIn);
+		}
+
 		return msg;
 	}
     
@@ -163,7 +186,7 @@ public class Client{
 	 * 刷新Token
 	 */
 	public static void refreshToken() {
-		CronUtil.schedule("*/1 * * * * *", new Task() {
+		CRON_ID = CronUtil.schedule("*/1 * * * * *", new Task() {
 			@Override
 			public void execute() {
 			synchronized (this) {

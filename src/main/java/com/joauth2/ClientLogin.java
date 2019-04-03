@@ -103,7 +103,7 @@ public class ClientLogin {
             request.getSession().setAttribute(OAuth2Constants.SESSION_LOGIN_RECORD_ID, id);
             log.info("登录数据保存成功");
         } else {
-            log.info(resultJson.getStr("message"));
+            log.info(resultJson.getStr("msg"));
         }
     }
 
@@ -125,7 +125,7 @@ public class ClientLogin {
         if (resultJson.getInt("code") == 10000) {
             log.info("下线成功");
         } else {
-            log.info(resultJson.getStr("message"));
+            log.info(resultJson.getStr("msg"));
         }
     }
 
@@ -140,7 +140,7 @@ public class ClientLogin {
             params.put("app_key", Client.props.getStr("auth.app_key"));
             JSONObject resultJson = Client.doPost(requestUrl, params);
             if (resultJson.getInt("code") != 10000) {
-                log.info(resultJson.getStr("message"));
+                log.info(resultJson.getStr("msg"));
             }
         }
 

@@ -272,6 +272,11 @@ public class Client{
     			.header("Content-Type", "application/x-www-form-urlencoded")
     			.form(AuthSecureUtils.encodeKeysToMap(params))
     			.execute().body();
+
+    	if (StrUtil.isBlank(result) || !StrUtil.startWith(result, "{")) {
+    		log.info("请求结果：" + result);
+    		return null;
+		}
         JSONObject resultJson = JSONUtil.parseObj(result);
         
         // 解密

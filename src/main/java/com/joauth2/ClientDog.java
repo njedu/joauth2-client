@@ -1,6 +1,5 @@
 package com.joauth2;
 
-import cn.hutool.core.util.HexUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.SecureUtil;
 import cn.hutool.log.Log;
@@ -27,7 +26,11 @@ public class ClientDog {
     public static String endpwd = "";
 
 
-    private static void initVariable(){
+    /**
+     * 读取加密狗配置信息
+     * @return
+     */
+    private static boolean readVariable(){
         Props properties = Client.props;
         try {
             beginpwd = DESUtils.desDecode(properties.getStr("dog.beginpwd"), pk);
@@ -36,11 +39,20 @@ public class ClientDog {
         } catch (Exception e) {
             e.printStackTrace();
             JOAuthListener.setMESSAGE("加密狗配置文件读取失败");
+            return false;
         }
+        return true;
     }
 
-    public static void init() {
-        initVariable();
+    /**
+     * 初始化加密狗
+     * @return
+     */
+    public static boolean init() {
+        boolean variableFlag = readVariable();
+        if (!variableFlag) {
+            return false;
+        }
         
         // 实例化加密狗
         jsyunew3 j9 = new jsyunew3();
@@ -50,12 +62,12 @@ public class ClientDog {
         DevicePath = j9.FindPort(0);
         if (j9.get_LastError() != 0) {
             JOAuthListener.setMESSAGE("未找到加密锁,请插入加密锁后，再进行操作");
-            return;
+            return false;
         }
 
 		// 校验锁ID
         if (!checkLockId(j9, DevicePath)) {
-		    return;
+		    return false;
         }
 
 		// 从加密锁的指定的地址中读取一批数据,使用默认的读密码
@@ -64,7 +76,7 @@ public class ClientDog {
 		if (j9.get_LastError() != 0) {
 		    log.info(j9.get_LastError() + "");
             JOAuthListener.setMESSAGE("读取储存器失败");
-			return;
+			return false;
 		}
 
         // 读取数据
@@ -85,8 +97,10 @@ public class ClientDog {
 		log.info("加密狗数据解析：" + maxUserCnt);
 		if (maxUserCnt == 0) {
             JOAuthListener.setMESSAGE(OAuth2Constants.INVALID_MAX_USER);
+            return false;
         }
 		Client.MAX_USER = maxUserCnt;
+		return true;
     }
 
     /**

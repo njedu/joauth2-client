@@ -24,17 +24,16 @@ public class DataSourceConfig {
      * @param ds
      * @return
      */
-    public static boolean init(com.joauth2.db.DataSource ds){
+    public static void init(com.joauth2.db.DataSource ds){
         if (ds == null) {
-            return false;
+            return;
         }
         dbSource = ds;
-        Props props = new Props("application.properties");
+        /*Props props = new Props("application.properties");
         props.setProperty("auth.datasource.url", ds.getUrl());
         props.setProperty("auth.datasource.driver", ds.getDriver());
         props.setProperty("auth.datasource.user", ds.getUser());
-        props.setProperty("auth.datasource.password", ds.getPassword());
-        return true;
+        props.setProperty("auth.datasource.password", ds.getPassword());*/
     }
 
     /**

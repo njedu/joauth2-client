@@ -257,7 +257,10 @@ public class Client{
 		MAX_USER = maxUser;*/
 
 		// 离线模式使用加密狗
-		ClientDog.init();
+		boolean initSuccess = ClientDog.init();
+		if (!initSuccess) {
+            JOAuthListener.canEncrypt = false;
+        }
 		return true;
 	}
 

@@ -2,6 +2,7 @@ package com.joauth2;
 
 import java.util.Date;
 
+import javax.annotation.PreDestroy;
 import javax.servlet.annotation.WebListener;
 import javax.servlet.http.*;
 
@@ -113,8 +114,14 @@ public class JOAuthListener implements HttpSessionListener, HttpSessionAttribute
 			user = (ClientUser) session.getAttribute(OAuth2Constants.SESSION_CLIENT_ATTR);
 			ClientLogin.logout(user.getId(), session, OAuth2Constants.SESSION_CLIENT_ATTR);
 		}
-		
+	}
 
+	/**
+	 * 在服务器卸载Servlet时运行
+	 */
+	@PreDestroy
+	public void servletDestoryed(){
+		ClientLogin.initApp();
 	}
 
 }

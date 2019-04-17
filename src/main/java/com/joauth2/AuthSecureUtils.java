@@ -30,7 +30,6 @@ public class AuthSecureUtils {
         byte[] aesKey = HexUtil.decodeHex(OAuth2Constants.AES_KEY);
         AES aes = new AES(Mode.CTS, Padding.PKCS5Padding, aesKey, aesKey);
         String decryptStr = aes.decryptStr(encryptHex, CharsetUtil.CHARSET_UTF_8);
-        cn.hutool.core.lang.Console.log(decryptStr);
         String[] paramArr = StrUtil.split(decryptStr, "&");
         Map<String, String> map = MapUtil.newHashMap();
         for (String s : paramArr) {

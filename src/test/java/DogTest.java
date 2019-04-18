@@ -10,9 +10,9 @@ import org.junit.Test;
  */
 public class DogTest {
 
-    @Test
+    //@Test
     public void testDog(){
-        //ClientDog.init();
+        ClientDog.init();
     }
 
 }

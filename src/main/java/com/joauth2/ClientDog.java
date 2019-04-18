@@ -70,37 +70,51 @@ public class ClientDog {
 		    return false;
         }
 
-		// 从加密锁的指定的地址中读取一批数据,使用默认的读密码
+		// 读取存储器中数据字节长度
 		short address = 0;// 要读取的数据在加密锁中储存的起始地址
         int length = j9.YRead(address, beginpwd, endpwd, DevicePath);
 		if (j9.get_LastError() != 0) {
 		    log.info(j9.get_LastError() + "");
-            JOAuthListener.setMESSAGE("读取储存器失败");
+            JOAuthListener.setMESSAGE("读取储存器字节长度失败");
 			return false;
 		}
 
-        // 读取数据
-		short[] buf = new short[length];
-		StringBuilder sb = new StringBuilder();
-		for (int i = 0; i < length; i++) {
-			try {
-				buf[i] = j9.GetBuf(i);
-				sb.append((char) buf[i]);
-			} catch (Exception e) {
-				e.printStackTrace();
-				break;
-			}
-
-		}
-        JOAuthListener.setMESSAGE("加密狗加载成功！");
-		int maxUserCnt = Integer.valueOf(sb.toString());
-		log.info("加密狗数据解析：" + maxUserCnt);
-		if (maxUserCnt == 0) {
-            JOAuthListener.setMESSAGE(OAuth2Constants.INVALID_MAX_USER);
+		// 读取存储器中数据
+        j9.YReadEx(address, (short)length, beginpwd, endpwd, DevicePath);
+        if (j9.get_LastError() != 0) {
+            log.info(j9.get_LastError() + "");
+            JOAuthListener.setMESSAGE("读取储存器失败");
             return false;
         }
-		Client.MAX_USER = maxUserCnt;
-		return true;
+
+        // 读取数据
+        short[] buf = new short[length];
+        StringBuilder sb = new StringBuilder();
+        for (int i = 1; i < length; i++) {
+            try {
+                buf[i] = j9.GetBuf(i);
+                sb.append((char)buf[i]);
+            } catch (Exception e) {
+                e.printStackTrace();
+                break;
+            }
+        }
+
+        try {
+            long maxUserCnt = Integer.valueOf(sb.toString());
+            log.info("加密狗数据解析：" + maxUserCnt);
+            if (maxUserCnt == 0) {
+                JOAuthListener.setMESSAGE(OAuth2Constants.INVALID_MAX_USER);
+                return false;
+            }
+            Client.MAX_USER = (int)maxUserCnt;
+        } catch (Exception e) {
+            log.info(j9.get_LastError() + "");
+            JOAuthListener.setMESSAGE("加密狗数据解析失败");
+            return false;
+        }
+        JOAuthListener.setMESSAGE("加密狗加载成功！");
+        return true;
     }
 
     /**

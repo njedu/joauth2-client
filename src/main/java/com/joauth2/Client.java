@@ -257,7 +257,10 @@ public class Client{
 		MAX_USER = maxUser;*/
 
 		// 离线模式使用加密狗
-		ClientDog.init();
+		boolean initSuccess = ClientDog.init();
+		if (!initSuccess) {
+            JOAuthListener.canEncrypt = false;
+        }
 		return true;
 	}
 
@@ -272,6 +275,11 @@ public class Client{
     			.header("Content-Type", "application/x-www-form-urlencoded")
     			.form(AuthSecureUtils.encodeKeysToMap(params))
     			.execute().body();
+
+    	if (StrUtil.isBlank(result) || !StrUtil.startWith(result, "{")) {
+    		log.info("请求结果：" + result);
+    		return null;
+		}
         JSONObject resultJson = JSONUtil.parseObj(result);
         
         // 解密

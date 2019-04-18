@@ -38,7 +38,7 @@ public class ClientDog {
             lockid = properties.getStr("dog.lockid");
         } catch (Exception e) {
             e.printStackTrace();
-            JOAuthListener.setMESSAGE("加密狗配置文件读取失败");
+            JOAuthListener.setMESSAGE("加密狗配置文件读取失败，请检查是否全部正确");
             return false;
         }
         return true;

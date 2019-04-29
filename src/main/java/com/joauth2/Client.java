@@ -21,7 +21,7 @@ import cn.hutool.setting.dialect.Props;
 /**
  * 授权登录器
  */
-public class Client{
+public class Client extends AbstractRequestor{
 
 	private static Log log = LogFactory.get(Client.class);
 	
@@ -221,7 +221,7 @@ public class Client{
 
 		// 检查appKey
 		if (!StrUtil.equals(MapUtil.getStr(appMap, "appKey"), props.getStr("auth.app_key"))) {
-			JOAuthListener.setMESSAGE(OAuth2Constants.INVALID_PROPERTIES);
+			JOAuthListener.setMESSAGE(OAuth2Constants.INVALID_PROPERTIES + "[appKey错误]");
 			JOAuthListener.canEncrypt = false;
 			return true;
 		}
@@ -232,30 +232,6 @@ public class Client{
 
 		OFFLINE = true;
 
-		/*// 内网IP检查
-		String innerIp = MapUtil.getStr(appMap, "innetIp");
-		String localIp = AuthSecureUtils.getInnetIp();
-		if (!StrUtil.equals(innerIp, localIp)) {
-			JOAuthListener.setMESSAGE(OAuth2Constants.INVALID_IP);
-			JOAuthListener.canEncrypt = false;
-			return true;
-		}
-
-		// 授权时间检查
-		Date beginTime = MapUtil.getDate(appMap, "beginTime"),
-				endTime = MapUtil.getDate(appMap, "endTime"),
-				now = new Date();
-		END_TIME = endTime;
-		if (beginTime.getTime() > now.getTime() || endTime.getTime() < now.getTime()) {
-			JOAuthListener.setMESSAGE(OAuth2Constants.EXPIRED_TIME);
-			JOAuthListener.canEncrypt = false;
-			return true;
-		}
-
-		// 最大登录人数检查
-		int maxUser = MapUtil.getInt(appMap, "maxUser");
-		MAX_USER = maxUser;*/
-
 		// 离线模式使用加密狗
 		boolean initSuccess = ClientDog.init();
 		if (!initSuccess) {
@@ -264,46 +240,7 @@ public class Client{
 		return true;
 	}
 
-    /**
-     * POST请求
-     * @param url
-     * @param params
-     * @return
-     */
-    public static JSONObject doPost(String url, Map params) {
-    	String result = HttpUtil.createPost(url)
-    			.header("Content-Type", "application/x-www-form-urlencoded")
-    			.form(AuthSecureUtils.encodeKeysToMap(params))
-    			.execute().body();
 
-    	if (StrUtil.isBlank(result) || !StrUtil.startWith(result, "{")) {
-    		log.info("请求结果：" + result);
-    		return null;
-		}
-        JSONObject resultJson = JSONUtil.parseObj(result);
-        
-        // 解密
-        if (resultJson.containsKey("object") && resultJson.getJSONObject("object").containsKey(OAuth2Constants.AES_PARAM)) {
-			resultJson.getJSONObject("object")
-				.putAll(
-						AuthSecureUtils.decodeKeys(
-								resultJson.getJSONObject("object").getStr(OAuth2Constants.AES_PARAM))
-						);
-		}
-        
-        return resultJson;
-	}
-    
-    /**
-     * GET请求
-     * @param url
-     * @param params
-     * @return
-     */
-    public static HttpResponse doGet(String url, Map params) {
-        HttpResponse httpResponse =  HttpUtil.createGet(AuthSecureUtils.encodeRequestUrl(url, params)).execute();
-        return httpResponse;
-	}
 
 
 }

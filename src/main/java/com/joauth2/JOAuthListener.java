@@ -35,20 +35,44 @@ public class JOAuthListener implements HttpSessionListener, HttpSessionAttribute
 		MESSAGE = message;
 	}
 
+	/**
+	 * 检查配置文件
+	 * @return
+	 */
+	private String checkProps() {
+		StringBuilder sb = new StringBuilder("");
+		Props props = Client.props;
+		if (!props.containsKey("auth.app_key")) {
+			sb.append("[auth.app_key] ");
+		}
+
+		if (!props.containsKey("auth.app_secret")) {
+			sb.append("[auth.app_secret] ");
+		}
+
+		if (!props.containsKey("auth.url")) {
+			sb.append("[auth.url] ");
+		}
+
+		if (!props.containsKey("auth.app_encrypt")) {
+			sb.append( "[auth.app_encrypt] " );
+		}
+
+		if (!props.containsKey("auth.redirect_uri")) {
+			sb.append( "[auth.redirect_uri] " );
+		}
+
+		return sb.toString();
+	}
+
 	public JOAuthListener() {
 		String localIp = AuthSecureUtils.getInnetIp();
 		log.info("当前IP: {}", localIp);
 
 		// 检测配置文件
-		Props props = Client.props;
-		boolean containsKey = props.containsKey("auth.app_key") &&
-				props.containsKey("auth.app_secret") &&
-				props.containsKey("auth.url") &&
-				props.containsKey("auth.app_encrypt") &&
-				props.containsKey("auth.redirect_uri");
-		
-		if (!containsKey) {
-			MESSAGE = OAuth2Constants.INVALID_PROPERTIES;
+		String checkPropsStr = checkProps();
+		if (StrUtil.isNotEmpty(checkPropsStr)) {
+			MESSAGE = OAuth2Constants.INVALID_PROPERTIES + checkPropsStr;
 			canEncrypt = false;
 		}
 		

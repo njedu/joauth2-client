@@ -23,11 +23,11 @@ import java.util.concurrent.ConcurrentMap;
  * @see
  * @since 2019/3/23
  */
-public class ClientLogin {
+public class ClientLogin extends AbstractRequestor{
 
     private static Log log = LogFactory.get(ClientLogin.class);
 
-    public static ConcurrentMap<String, String> userSessionMap = new ConcurrentHashMap<String, String>();
+    private static ConcurrentMap<String, String> userSessionMap = new ConcurrentHashMap<String, String>();
 
     /**
      * 登录
@@ -96,7 +96,7 @@ public class ClientLogin {
         params.put("device", userAgentGetter.getDevice());
         params.put("browserType", userAgentGetter.getBrowser());
 
-        JSONObject resultJson = Client.doPost(requestUrl, params);
+        JSONObject resultJson = doPost(requestUrl, params);
         if (resultJson.getInt("code") == 10000) {
             // 获取记录id
             int id = resultJson.getJSONObject("object").getInt("id");
@@ -121,7 +121,7 @@ public class ClientLogin {
         params.put("access_token", Client.TOKEN);
         params.put("id", recordId);
 
-        JSONObject resultJson = Client.doPost(requestUrl, params);
+        JSONObject resultJson = doPost(requestUrl, params);
         if (resultJson.getInt("code") == 10000) {
             log.info("下线成功");
         } else {
@@ -138,7 +138,7 @@ public class ClientLogin {
             String requestUrl = Client.props.getStr("auth.url") + "/login_record/init";
             Map<String, Object> params = MapUtil.newHashMap();
             params.put("app_key", Client.props.getStr("auth.app_key"));
-            JSONObject resultJson = Client.doPost(requestUrl, params);
+            JSONObject resultJson = doPost(requestUrl, params);
             if (resultJson.getInt("code") != 10000) {
                 log.info(resultJson.getStr("msg"));
             }
@@ -205,6 +205,29 @@ public class ClientLogin {
             }
         }
         session.invalidate();
+    }
+
+    /**
+     * 获取 [用户-SESSION] 关联的键值对
+     * @return
+     */
+    public static ConcurrentMap<String, String> getUserSessionMap() {
+        return userSessionMap;
+    }
+
+    /**
+     * 根据sessionId获取userId
+     * @param sessionId
+     * @return
+     */
+    public static String getUserIdFromSession(String sessionId){
+        for (String key : userSessionMap.keySet()) {
+            String value = userSessionMap.get(key);
+            if (StrUtil.equals(value, sessionId)) {
+                return StrUtil.subAfter(value, ":", true);
+            }
+        }
+        return "";
     }
 
 }

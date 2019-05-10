@@ -2,6 +2,7 @@ package com.joauth2;
 
 import java.util.Date;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.servlet.annotation.WebListener;
 import javax.servlet.http.*;
@@ -9,10 +10,12 @@ import javax.servlet.http.*;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.lang.Console;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.cron.CronUtil;
 import cn.hutool.log.Log;
 import cn.hutool.log.LogFactory;
 import cn.hutool.log.StaticLog;
 import cn.hutool.setting.dialect.Props;
+import com.joauth2.upgrade.FileManager;
 
 @WebListener
 public class JOAuthListener implements HttpSessionListener, HttpSessionAttributeListener {
@@ -20,83 +23,21 @@ public class JOAuthListener implements HttpSessionListener, HttpSessionAttribute
 	private static Log log = LogFactory.get(JOAuthListener.class);
 
 	/**
-	 * 支持加密
+	 * Servlet初始化时调用
 	 */
-	public static boolean canEncrypt = true;
-	
-	/**
-	 * 统一提示信息
-	 */
-	private static String MESSAGE = "";
-	public static synchronized String getMESSAGE() {
-		return MESSAGE;
-	}
-	public static synchronized void setMESSAGE(String message) {
-		MESSAGE = message;
+	public void servletInit(){
+
 	}
 
 	/**
-	 * 检查配置文件
-	 * @return
+	 * 在服务器卸载Servlet时运行
 	 */
-	private String checkProps() {
-		StringBuilder sb = new StringBuilder("");
-		Props props = Client.props;
-		if (!props.containsKey("auth.app_key")) {
-			sb.append("[auth.app_key] ");
-		}
+	public void servletDestoryed(){
 
-		if (!props.containsKey("auth.app_secret")) {
-			sb.append("[auth.app_secret] ");
-		}
-
-		if (!props.containsKey("auth.url")) {
-			sb.append("[auth.url] ");
-		}
-
-		if (!props.containsKey("auth.app_encrypt")) {
-			sb.append( "[auth.app_encrypt] " );
-		}
-
-		if (!props.containsKey("auth.redirect_uri")) {
-			sb.append( "[auth.redirect_uri] " );
-		}
-
-		return sb.toString();
 	}
 
-	public JOAuthListener() {
-		String localIp = AuthSecureUtils.getInnetIp();
-		log.info("当前IP: {}", localIp);
 
-		// 检测配置文件
-		String checkPropsStr = checkProps();
-		if (StrUtil.isNotEmpty(checkPropsStr)) {
-			MESSAGE = OAuth2Constants.INVALID_PROPERTIES + checkPropsStr;
-			canEncrypt = false;
-		}
-		
-		// 检测token和expire_in
-		if (StrUtil.isNotEmpty(Client.TOKEN) && Client.END_TIME != null) {
-			MESSAGE = "无效的TOKEN，请检查Client文件是否损坏";
-			canEncrypt = false;
-		}
-		
-		// 获取token
-		if (canEncrypt) {
-			MESSAGE = Client.getCode();
-		}
-		Client.MESSAGE_TMP = MESSAGE;
-		log.info(MESSAGE);
-
-		// 初始化应用
-		ClientLogin.initApp();
-
-		if (!Client.OFFLINE) {
-			// 开启定时任务-刷新Token
-			Client.refreshToken();
-		}
-	}
+	public JOAuthListener() {}
 	
 	@Override
 	public void attributeAdded(HttpSessionBindingEvent event) {
@@ -120,8 +61,8 @@ public class JOAuthListener implements HttpSessionListener, HttpSessionAttribute
 
 	@Override
 	public void sessionDestroyed(HttpSessionEvent se) {
-		if (Client.TOTAL_USER > 0) {
-			Client.TOTAL_USER --;
+		if (Attr.TOTAL_USER > 0) {
+			Attr.TOTAL_USER --;
 		}
 
 		HttpSession session = se.getSession();
@@ -140,12 +81,6 @@ public class JOAuthListener implements HttpSessionListener, HttpSessionAttribute
 		}
 	}
 
-	/**
-	 * 在服务器卸载Servlet时运行
-	 */
-	@PreDestroy
-	public void servletDestoryed(){
-		ClientLogin.initApp();
-	}
+
 
 }

@@ -25,35 +25,8 @@ public class Client extends AbstractRequestor{
 
 	private static Log log = LogFactory.get(Client.class);
 	
-	// 令牌
-	public static String TOKEN = "";
-	// 间隔结束时间
-	public static Date END_TIME = null;
-	// 当前用户数量
-	public static int TOTAL_USER = 0;
-	// 最大用户数量
-	public static int MAX_USER = 0;
-	// 离线模式
-	public static boolean OFFLINE = false;
-	
-	public static String MESSAGE_TMP = "";
+	private static Props props = Attr.props;
 
-	public static Props props;
-	// Cron的ID
-	private static String CRON_ID = null;
-
-	static {
-		try {
-			props = new Props("application.properties");
-		} catch (Exception e) {
-			try {
-				props = new Props("db.properties");
-			} catch (Exception e2) {}
-		}
-		if (props == null) {
-			log.error("缺少配置项，请检查配置文件application.properties和授权相关配置");
-		}
-	}
 
 	/**
 	 * 获取授权码
@@ -62,13 +35,13 @@ public class Client extends AbstractRequestor{
     public static synchronized String getCode() {
 
     	String clientId = props.getStr("auth.app_key");
-        String redirectUri = props.getStr("auth.redirect_uri");
+        String redirectUri = StrUtil.isEmpty(props.getStr("auth.redirect_uri")) ? "/" : props.getStr("auth.redirect_uri");
         String requestUrl = props.getStr("auth.url") + "/authorize";
         String appEncrypt = props.getStr("auth.app_encrypt");
         
         // 优先处理离线模式
         if (isOffline(appEncrypt)) {
-        	return JOAuthListener.getMESSAGE();
+        	return Attr.getMessage();
 		}
 
         // 请求参数
@@ -84,8 +57,8 @@ public class Client extends AbstractRequestor{
             try {
             	String resultLocation = httpResponse.header("Location");
             	String code = resultLocation.substring(resultLocation.lastIndexOf("=") + 1);
-            	JOAuthListener.setMESSAGE(getToken(code));
-            	return JOAuthListener.getMESSAGE();
+				Attr.setMessage(getToken(code));
+            	return Attr.getMessage();
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -125,20 +98,22 @@ public class Client extends AbstractRequestor{
 		}
         
         resultJson = resultJson.getJSONObject("object");
-        TOKEN = resultJson.getStr("access_token");
-        MAX_USER = resultJson.getInt("max_user");
-        // 计算授权结束时间
-        setEndTime(resultJson.getInt("expires_in"));
-        JOAuthListener.canEncrypt = true;
+		Attr.TOKEN = resultJson.getStr("access_token");
+        Attr.MAX_USER = resultJson.getInt("max_user");
+		Attr.INTERVALS = resultJson.getInt("expires_in") == null ? 180 : resultJson.getInt("expires_in");
+		Attr.RESTART_RECORD_ID = resultJson.getInt(OAuth2Constants.SESSION_RESTART_RECORD_ID);
+		Attr.APP_NAME = resultJson.getStr("app_name");
+		setEndTime(Attr.INTERVALS);
+		Attr.canEncrypt = true;
         return "JOAuth2授权服务装载成功！";
     }
 
 	/**
-	 * 设置过期时间
+	 * 根据expiresIn计算自动任务下一次的执行时间
 	 * @param expiresIn
 	 */
 	private static void setEndTime(int expiresIn){
-		END_TIME = DateUtil.offset(new Date(), DateField.SECOND, expiresIn);
+		Attr.END_TIME = DateUtil.offset(new Date(), DateField.SECOND, expiresIn);
 	}
 
 	/**
@@ -148,27 +123,17 @@ public class Client extends AbstractRequestor{
 	 */
 	public static String errorCommonHandle(JSONObject resultJson){
 		String msg = resultJson.getStr("msg");
-		JOAuthListener.setMESSAGE(msg);
-		JOAuthListener.canEncrypt = false;
-		MAX_USER = 0;
+		Attr.setMessage(msg);
+		Attr.canEncrypt = false;
+		Attr.MAX_USER = 0;
 
 		// 授权间隔异常 -> 移除定时任务 -> 终止授权
 		if (resultJson.getInt("code") == 403) {
-			setEndTime(2592000);
+			//setEndTime(2592000);
 			try {
-				CronUtil.remove(CRON_ID);
-				CronUtil.stop();
+				CronUtil.remove(Attr.CRON_APPDATA_ID);
 			} catch (Exception e) {}
 		}
-		// 应用被冻结
-		/*else if (resultJson.getInt("code") == 926) {
-			ClientLogin.initApp();
-			int expireIn = 60;
-			if (resultJson.containsKey("object") && resultJson.getJSONObject("object").containsKey("expire_in")) {
-				expireIn = resultJson.getJSONObject("object").getInt("expires_in");
-			}
-			setEndTime(expireIn);
-		}*/
 		else {
 			ClientLogin.initApp();
 			int expireIn = 60;
@@ -180,31 +145,6 @@ public class Client extends AbstractRequestor{
 
 		return msg;
 	}
-    
-    
-	/**
-	 * 刷新Token
-	 */
-	public static void refreshToken() {
-		CRON_ID = CronUtil.schedule("*/1 * * * * *", new Task() {
-			@Override
-			public void execute() {
-			synchronized (this) {
-				// 判断是否是间隔的结束时间
-				Date now = new Date();
-				if (END_TIME == null || END_TIME.getTime() < now.getTime()) {
-					getCode();
-					if (!StrUtil.equals(MESSAGE_TMP, JOAuthListener.getMESSAGE())) {
-						MESSAGE_TMP = JOAuthListener.getMESSAGE();
-						log.info(JOAuthListener.getMESSAGE());
-					}
-				}
-			}
-			}
-		});
-		CronUtil.setMatchSecond(true);
-		CronUtil.start();
-	}
 
 	/**
 	 * 	检查离线模式并进行加密
@@ -214,15 +154,15 @@ public class Client extends AbstractRequestor{
 	public static boolean isOffline(String encrypt) {
 		Map<String, String> appMap = AuthSecureUtils.decrypToApp(encrypt);
 		if (appMap == null) {
-			JOAuthListener.setMESSAGE(OAuth2Constants.INVALID_PROPERTIES);
-			JOAuthListener.canEncrypt = false;
+			Attr.setMessage(OAuth2Constants.INVALID_PROPERTIES);
+			Attr.canEncrypt = false;
 			return true;
 		}
 
 		// 检查appKey
 		if (!StrUtil.equals(MapUtil.getStr(appMap, "appKey"), props.getStr("auth.app_key"))) {
-			JOAuthListener.setMESSAGE(OAuth2Constants.INVALID_PROPERTIES + "[appKey错误]");
-			JOAuthListener.canEncrypt = false;
+			Attr.setMessage(OAuth2Constants.INVALID_PROPERTIES + "[appKey错误]");
+			Attr.canEncrypt = false;
 			return true;
 		}
 
@@ -230,16 +170,68 @@ public class Client extends AbstractRequestor{
 			return false;
 		}
 
-		OFFLINE = true;
+		Attr.OFFLINE = true;
 
 		// 离线模式使用加密狗
 		boolean initSuccess = ClientDog.init();
 		if (!initSuccess) {
-            JOAuthListener.canEncrypt = false;
+            Attr.canEncrypt = false;
         }
 		return true;
 	}
 
+	/**
+	 * 更新客户端数据
+	 */
+	public static void updateAppData(){
+		if (Attr.OFFLINE) {
+			return;
+		}
+
+		String requestUrl = Attr.props.getStr("auth.url") + "/data";
+		Map<String, Object> params = MapUtil.newHashMap();
+		params.put("access_token", Attr.TOKEN);
+
+		JSONObject resultJson = doPost(requestUrl, params);
+		if (resultJson.getInt("code") == 10000) {
+			JSONObject json = resultJson.getJSONObject("object");
+			Attr.MAX_USER = json.getInt("maxUser");
+			Attr.INTERVALS = json.getInt("intervals");
+			setEndTime(Attr.INTERVALS);
+			Attr.canEncrypt = true;
+		} else {
+			String message = resultJson.getStr("msg");
+			Attr.setMessage(message);
+			Attr.canEncrypt = false;
+			Attr.MAX_USER = 0;
+			ClientLogin.initApp();
+		}
+	}
+
+	/**
+	 * 下线App
+	 * @return true/false
+	 */
+	public static boolean offline(){
+		if (Attr.OFFLINE || StrUtil.isEmpty(Attr.TOKEN)) {
+			return false;
+		}
+
+		String requestUrl = Attr.props.getStr("auth.url") + "/offline";
+		Map<String, Object> params = MapUtil.newHashMap();
+		params.put("access_token", Attr.TOKEN);
+		params.put(OAuth2Constants.SESSION_RESTART_RECORD_ID, Attr.RESTART_RECORD_ID);
+
+		JSONObject resultJson = doPost(requestUrl, params);
+		if (resultJson.getInt("code") == 10000) {
+			log.info("App下机成功");
+			return true;
+		} else {
+			String message = resultJson.getStr("msg");
+			log.error(message);
+			return false;
+		}
+	}
 
 
 

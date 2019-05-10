@@ -49,9 +49,10 @@ public class AuthSecureUtils {
         String paramsStr = HttpUtil.toParams(params);
         byte[] aesKey = HexUtil.decodeHex(OAuth2Constants.AES_KEY);
         AES aes = new AES(Mode.CTS, Padding.PKCS5Padding, aesKey, aesKey);
-        if (paramsStr.length() < 8) {
-            paramsStr += "&a=a&b=b&c=c&d=d&e=e";
-        }
+        /*if (paramsStr.length() < 8) {
+            paramsStr += "&a=a&b=b&c=c&d=d&e=e&f=f&g=g";
+        }*/
+		paramsStr += "&a=a&b=b&c=c&d=d&e=e&f=f&g=g";
         String paramStrHex = aes.encryptHex(paramsStr);
         return paramStrHex;
     }

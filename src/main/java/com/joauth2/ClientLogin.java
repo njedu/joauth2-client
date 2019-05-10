@@ -23,11 +23,11 @@ import java.util.concurrent.ConcurrentMap;
  * @see
  * @since 2019/3/23
  */
-public class ClientLogin {
+public class ClientLogin extends AbstractRequestor{
 
     private static Log log = LogFactory.get(ClientLogin.class);
 
-    public static ConcurrentMap<String, String> userSessionMap = new ConcurrentHashMap<String, String>();
+    private static ConcurrentMap<String, String> userSessionMap = new ConcurrentHashMap<String, String>();
 
     /**
      * 登录
@@ -39,26 +39,17 @@ public class ClientLogin {
     public static <T> R login(ClientUser<T> user, HttpServletRequest request){
         HttpSession session = request.getSession();
 
-        // 判断间隔时间
-        if (Client.END_TIME != null) {
-            long intervals = DateUtil.betweenMs(Client.END_TIME, new Date());
-            if (intervals < 0) {
-                JOAuthListener.canEncrypt = false;
-                return new R(500, OAuth2Constants.INVALID_INTERVAL);
-            }
-        }
-
         // 检查是否已登录
         if (ClientLogin.existLoginedUser(user.getId(), session)) {
             return new R(500, "当前账户已登录，无法再次登录");
         }
 
-        if (Client.MAX_USER == 0) {
-            return new R(500, JOAuthListener.getMESSAGE() + "，无法登录");
+        if (Attr.MAX_USER == 0) {
+            return new R(500, Attr.getMessage() + "，无法登录");
         }
 
         // 检查授权许可
-        if (Client.TOTAL_USER + 1 > Client.MAX_USER) {
+        if (Attr.TOTAL_USER + 1 > Attr.MAX_USER) {
             return new R(500, "超过最大用户限制，无法登录");
         }
 
@@ -78,14 +69,14 @@ public class ClientLogin {
      * @param request
      */
     public static void saveLoginInfo(ClientUser user, HttpServletRequest request) {
-        if (Client.OFFLINE) {
+        if (Attr.OFFLINE) {
             return;
         }
 
-        String requestUrl = Client.props.getStr("auth.url") + "/login_record";
+        String requestUrl = Attr.props.getStr("auth.url") + "/login_record";
 
         Map<String, Object> params = MapUtil.newHashMap();
-        params.put("access_token", Client.TOKEN);
+        params.put("access_token", Attr.TOKEN);
         params.put("userid", user.getId());
         params.put("username", user.getUsername());
         params.put("nickname", user.getNickname());
@@ -96,7 +87,7 @@ public class ClientLogin {
         params.put("device", userAgentGetter.getDevice());
         params.put("browserType", userAgentGetter.getBrowser());
 
-        JSONObject resultJson = Client.doPost(requestUrl, params);
+        JSONObject resultJson = doPost(requestUrl, params);
         if (resultJson.getInt("code") == 10000) {
             // 获取记录id
             int id = resultJson.getJSONObject("object").getInt("id");
@@ -112,16 +103,16 @@ public class ClientLogin {
      * @param recordId
      */
     public static void saveLogoutInfo(int recordId) {
-        if (Client.OFFLINE) {
+        if (Attr.OFFLINE) {
             return;
         }
 
-        String requestUrl = Client.props.getStr("auth.url") + "/login_record/offline";
+        String requestUrl = Attr.props.getStr("auth.url") + "/login_record/offline";
         Map<String, Object> params = MapUtil.newHashMap();
-        params.put("access_token", Client.TOKEN);
+        params.put("access_token", Attr.TOKEN);
         params.put("id", recordId);
 
-        JSONObject resultJson = Client.doPost(requestUrl, params);
+        JSONObject resultJson = doPost(requestUrl, params);
         if (resultJson.getInt("code") == 10000) {
             log.info("下线成功");
         } else {
@@ -134,17 +125,17 @@ public class ClientLogin {
      * 程序重启时强制下线所有的登录记录
      */
     public static void initApp() {
-        if (!Client.OFFLINE) {
-            String requestUrl = Client.props.getStr("auth.url") + "/login_record/init";
+        if (!Attr.OFFLINE && StrUtil.isNotEmpty(Attr.TOKEN)) {
+            String requestUrl = Attr.props.getStr("auth.url") + "/login_record/init";
             Map<String, Object> params = MapUtil.newHashMap();
-            params.put("app_key", Client.props.getStr("auth.app_key"));
-            JSONObject resultJson = Client.doPost(requestUrl, params);
+            params.put("app_key", Attr.props.getStr("auth.app_key"));
+            JSONObject resultJson = doPost(requestUrl, params);
             if (resultJson.getInt("code") != 10000) {
                 log.info(resultJson.getStr("msg"));
             }
         }
 
-        Client.TOTAL_USER = 0;
+        Attr.TOTAL_USER = 0;
         userSessionMap = new ConcurrentHashMap<String, String>();
     }
 
@@ -169,10 +160,10 @@ public class ClientLogin {
      * 增加已登录用户数量
      */
     private static void plusTotalUser(int userId, HttpSession session){
-        ++Client.TOTAL_USER;
+        ++Attr.TOTAL_USER;
         String currentKey = OAuth2Constants.SESSION_EXCLUDE_LOGIN + ":" + userId;
         userSessionMap.put(currentKey, session.getId());
-        log.info("目前的总用户数量:" + Client.TOTAL_USER);
+        log.info("目前的总用户数量:" + Attr.TOTAL_USER);
     }
 
     /**
@@ -205,6 +196,29 @@ public class ClientLogin {
             }
         }
         session.invalidate();
+    }
+
+    /**
+     * 获取 [用户-SESSION] 关联的键值对
+     * @return
+     */
+    public static ConcurrentMap<String, String> getUserSessionMap() {
+        return userSessionMap;
+    }
+
+    /**
+     * 根据sessionId获取userId
+     * @param sessionId
+     * @return
+     */
+    public static String getUserIdFromSession(String sessionId){
+        for (String key : userSessionMap.keySet()) {
+            String value = userSessionMap.get(key);
+            if (StrUtil.equals(value, sessionId)) {
+                return StrUtil.subAfter(value, ":", true);
+            }
+        }
+        return "";
     }
 
 }

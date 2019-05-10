@@ -1,5 +1,9 @@
 package com.joauth2;
 
+import cn.hutool.setting.dialect.Props;
+
+import java.util.Date;
+
 /**
  * OAuth2Constants
  *
@@ -33,4 +37,7 @@ public class OAuth2Constants {
     public static final String SESSION_LOGIN_RECORD_ID = "joauth2_login_record_id";
     public static final String SESSION_EXCLUDE_LOGIN = "exclude_login_user";
     public static final String SESSION_CLIENT_ATTR = "session_user_attr";
+    public static final String SESSION_RESTART_RECORD_ID = "restart_record_id";
+
+
 }

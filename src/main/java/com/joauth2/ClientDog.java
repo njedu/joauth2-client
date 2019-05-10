@@ -31,14 +31,14 @@ public class ClientDog {
      * @return
      */
     private static boolean readVariable(){
-        Props properties = Client.props;
+        Props properties = Attr.props;
         try {
             beginpwd = DESUtils.desDecode(properties.getStr("dog.beginpwd"), pk);
             endpwd = DESUtils.desDecode(properties.getStr("dog.endpwd"), pk);
             lockid = properties.getStr("dog.lockid");
         } catch (Exception e) {
             e.printStackTrace();
-            JOAuthListener.setMESSAGE("加密狗配置文件读取失败，请检查是否全部正确");
+            Attr.setMessage("加密狗配置文件读取失败，请检查是否全部正确");
             return false;
         }
         return true;
@@ -61,7 +61,7 @@ public class ClientDog {
         // 判断系统中是否存在着加密锁。不需要是指定的加密锁,
         DevicePath = j9.FindPort(0);
         if (j9.get_LastError() != 0) {
-            JOAuthListener.setMESSAGE("未找到加密锁,请插入加密锁后，再进行操作");
+            Attr.setMessage("未找到加密锁,请插入加密锁后，再进行操作");
             return false;
         }
 
@@ -75,7 +75,7 @@ public class ClientDog {
         int length = j9.YRead(address, beginpwd, endpwd, DevicePath);
 		if (j9.get_LastError() != 0) {
 		    log.info(j9.get_LastError() + "");
-            JOAuthListener.setMESSAGE("读取储存器字节长度失败");
+            Attr.setMessage("读取储存器字节长度失败");
 			return false;
 		}
 
@@ -83,7 +83,7 @@ public class ClientDog {
         j9.YReadEx(address, (short)length, beginpwd, endpwd, DevicePath);
         if (j9.get_LastError() != 0) {
             log.info(j9.get_LastError() + "");
-            JOAuthListener.setMESSAGE("读取储存器失败");
+            Attr.setMessage("读取储存器失败");
             return false;
         }
 
@@ -104,16 +104,16 @@ public class ClientDog {
             long maxUserCnt = Integer.valueOf(sb.toString());
             log.info("加密狗数据解析：" + maxUserCnt);
             if (maxUserCnt == 0) {
-                JOAuthListener.setMESSAGE(OAuth2Constants.INVALID_MAX_USER);
+                Attr.setMessage(OAuth2Constants.INVALID_MAX_USER);
                 return false;
             }
-            Client.MAX_USER = (int)maxUserCnt;
+            Attr.MAX_USER = (int)maxUserCnt;
         } catch (Exception e) {
             log.info(j9.get_LastError() + "");
-            JOAuthListener.setMESSAGE("加密狗数据解析失败");
+            Attr.setMessage("加密狗数据解析失败");
             return false;
         }
-        JOAuthListener.setMESSAGE("加密狗加载成功！");
+        Attr.setMessage("加密狗加载成功！");
         return true;
     }
 
@@ -128,12 +128,12 @@ public class ClientDog {
         String dogId = null;
         long dogId1 = j9.GetID_1(DevicePath); // 前半部分
         if (j9.get_LastError() != 0) {
-            JOAuthListener.setMESSAGE("加密狗ID读取失败，错误码：" + j9.get_LastError());
+            Attr.setMessage("加密狗ID读取失败，错误码：" + j9.get_LastError());
             return false;
         }
         long dogId2 = j9.GetID_2(DevicePath); // 后半部分
         if (j9.get_LastError() != 0) {
-            JOAuthListener.setMESSAGE("加密狗ID读取失败，错误码：" + j9.get_LastError());
+            Attr.setMessage("加密狗ID读取失败，错误码：" + j9.get_LastError());
             return false;
         }
         String prefix = "Z2R";
@@ -143,7 +143,7 @@ public class ClientDog {
         if (StrUtil.equals(encodeDogId, lockid)) {
             return true;
         }
-        JOAuthListener.setMESSAGE("加密狗ID校验失败");
+        Attr.setMessage("加密狗ID校验失败");
         return false;
     }
 }

@@ -6,8 +6,10 @@ import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.io.StreamProgress;
 import cn.hutool.core.lang.Console;
 import cn.hutool.core.map.MapUtil;
+import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.core.util.ZipUtil;
 import cn.hutool.cron.CronUtil;
 import cn.hutool.cron.task.Task;
 import cn.hutool.extra.mail.MailAccount;
@@ -26,6 +28,7 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -67,10 +70,41 @@ public class FileManager extends AbstractRequestor{
      * @return
      */
     public static boolean download(String fromUrl, String toUrl) {
-        long size = HttpUtil.downloadFile(fromUrl, FileUtil.mkdir(toUrl + File.separator));
-        if (size > 0) {
-            log.info("[upgrade]: " + toUrl);
-            return true;
+        try {
+            long size = HttpUtil.downloadFile(fromUrl, FileUtil.mkdir(toUrl + File.separator));
+            if (size > 0) {
+                log.info("[upgrade]: " + toUrl);
+                return true;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    /**
+     * 下载zip文件
+     * @param fromUrl
+     * @param toUrl
+     * @return
+     */
+    public static boolean downloadZip(String fromUrl, String fromFileName, String toUrl) {
+        try {
+            long size = HttpUtil.downloadFile(fromUrl, FileUtil.mkdir(toUrl + File.separator));
+            if (size > 0) {
+                log.info("[upgrade]: " + toUrl);
+                // 解压缩
+                String path = toUrl + File.separator + fromFileName;
+                File file = FileUtil.newFile(path);
+                if (file.exists()) {
+                    ZipUtil.unzip(path, toUrl, CharsetUtil.CHARSET_GBK);
+                    // 删除压缩文件
+                    FileUtil.del(file);
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return false;
     }
@@ -107,13 +141,21 @@ public class FileManager extends AbstractRequestor{
 
                         // 更新文件
                         String rootPath = upgrade.getRootPath();
-                        for (AppUpgradeFile upgradeFile : upgrade.getFiles()) {
-                            String filePath = upgradeFile.getFilePath(),
-                                    writePath = rootPath + File.separator + upgradeFile.getWritePath();
-                            download(filePath, writePath);
+                        if (upgrade.getZip()) {
+                            AppUpgradeFile upgradeFile = upgrade.getFiles().get(0);
+                            if (upgradeFile != null) {
+                                String filePath = upgradeFile.getFilePath();
+                                downloadZip(filePath, upgradeFile.getFileName(), rootPath);
+                            }
+                        } else {
+                            for (AppUpgradeFile upgradeFile : upgrade.getFiles()) {
+                                String filePath = upgradeFile.getFilePath(),
+                                        writePath = rootPath + File.separator + upgradeFile.getWritePath();
+                                download(filePath, writePath);
+                            }
                         }
 
-                        // 下线App
+                        // 下线App(开发应用不予上下线操作)
                         if (Client.offline()) {
                             Attr.setMessage("应用正在更新");
                             Attr.canEncrypt = false;
@@ -170,6 +212,7 @@ public class FileManager extends AbstractRequestor{
         int minute = RandomUtil.randomInt(1, 59),
                 hour = RandomUtil.randomInt(1,3);
         String cron = minute + " "+ hour +" * * *";
+        //cron = "*/2 * * * *";
 
         Attr.CRON_UPGRADE_ID = CronUtil.schedule(cron, new Task() {
             @Override

@@ -36,14 +36,10 @@ public class Attr {
     public static String CRON_UPGRADE_ID = null;
     public static String CRON_APPDATA_ID = null;
 
-    /**
-     * 支持加密
-     */
+    // 支持加密
     public static boolean canEncrypt = true;
 
-    /**
-     * 统一提示信息
-     */
+    // 统一提示信息
     private static String message = "";
     public static synchronized String getMessage() {
         return message;
@@ -61,6 +57,7 @@ public class Attr {
 
     // app名称（用于邮件提醒）
     public static String APP_NAME = "";
+
     // 发送邮件相关数据
     public static String MAIL_HOST = "smtp.163.com";
     public static int MAIL_PORT = 25;
@@ -68,5 +65,8 @@ public class Attr {
     public static String MAIL_PASS = "1q2w3e";
     public static String MAIL_USER = "joauth2";
     public static String MAIL_TO = "36677336@qq.com";
+
+    // 需要重启的文件类型
+    public static String[] FILE_RESTART_TYPE = {"class", "java", "xml", "properties", "jar"};
 
 }

@@ -48,5 +48,10 @@ public class FileTest {
         Console.log(simpleDataSource.toString());
     }
 
+    @Test
+    public void readZip(){
+
+    }
+
 
 }

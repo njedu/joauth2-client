@@ -28,7 +28,10 @@ public class FileTest {
 
     @Test
     public void testUpgrade(){
-
+        String fromUrl = "http://192.168.31.178:8282/vcare/temp/2.0.2.zip",
+                fileName = "2.0.2.zip",
+                toUrl = "C:\\Program Files\\Apache Software Foundation\\Tomcat 7.0_Tomcat7-8282\\webapps\\vcare";
+        FileManager.downloadZip(fromUrl, fileName, toUrl);
     }
 
     @Test
@@ -43,6 +46,11 @@ public class FileTest {
         Attr.props = new Props("application.properties");
         SimpleDataSource simpleDataSource = SqlRunner.getDataSource();
         Console.log(simpleDataSource.toString());
+    }
+
+    @Test
+    public void readZip(){
+
     }
 
 

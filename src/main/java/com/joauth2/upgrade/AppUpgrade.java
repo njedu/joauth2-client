@@ -1,6 +1,8 @@
 package com.joauth2.upgrade;
 
 
+import com.sun.org.apache.xpath.internal.operations.Bool;
+
 import javax.servlet.http.HttpServletRequest;
 import java.io.Serializable;
 import java.util.List;
@@ -47,16 +49,16 @@ public class AppUpgrade implements Serializable {
     private List<AppUpgradeFile> files;
 
     /**
-     * 是否自动重启服务器
+     * 是否压缩包
      */
-    private boolean restartServer;
+    private Boolean zip;
 
-    public boolean isRestartServer() {
-        return restartServer;
+    public Boolean getZip() {
+        return zip == Boolean.TRUE;
     }
 
-    public void setRestartServer(boolean restartServer) {
-        this.restartServer = restartServer;
+    public void setZip(Boolean zip) {
+        this.zip = zip;
     }
 
     public List<AppUpgradeFile> getFiles() {

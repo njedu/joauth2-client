@@ -6,8 +6,7 @@ import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.io.StreamProgress;
 import cn.hutool.core.lang.Console;
 import cn.hutool.core.map.MapUtil;
-import cn.hutool.core.util.RandomUtil;
-import cn.hutool.core.util.StrUtil;
+import cn.hutool.core.util.*;
 import cn.hutool.cron.CronUtil;
 import cn.hutool.cron.task.Task;
 import cn.hutool.extra.mail.MailAccount;
@@ -21,14 +20,16 @@ import com.joauth2.AbstractRequestor;
 import com.joauth2.Attr;
 import com.joauth2.Client;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.*;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 
 
 /**
@@ -67,12 +68,37 @@ public class FileManager extends AbstractRequestor{
      * @return
      */
     public static boolean download(String fromUrl, String toUrl) {
-        long size = HttpUtil.downloadFile(fromUrl, FileUtil.mkdir(toUrl + File.separator));
-        if (size > 0) {
-            log.info("[upgrade]: " + toUrl);
-            return true;
+        try {
+            long size = HttpUtil.downloadFile(fromUrl, FileUtil.mkdir(toUrl + File.separator));
+            if (size > 0) {
+                log.info("[upgrade]: " + toUrl);
+                return true;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return false;
+    }
+
+    /**
+     * 下载zip文件
+     * @param fromUrl
+     * @param toUrl
+     * @return
+     */
+    public static String downloadZip(String fromUrl, String fromFileName, String toUrl) {
+        try {
+            long size = HttpUtil.downloadFile(fromUrl, FileUtil.mkdir(toUrl + File.separator));
+            if (size > 0) {
+                log.info("[upgrade]: " + toUrl);
+                // 解压缩
+                String path = toUrl + File.separator + fromFileName;
+                return path;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "";
     }
 
     /**
@@ -98,6 +124,25 @@ public class FileManager extends AbstractRequestor{
             List<AppUpgrade> upgradeList = JSONUtil.toList(resultJson.getJSONArray("object"), AppUpgrade.class);
             if (CollectionUtil.isNotEmpty(upgradeList)) {
                 try {
+                    boolean restart = false;
+                    // 检查是否需要重启
+                    for (AppUpgrade upgrade : upgradeList) {
+                        restart = checkRestart(upgrade);
+                        if (!restart) {
+                            break;
+                        }
+                    }
+
+                    // 下线App(开发应用不予上下线操作)
+                    if (restart && Client.offline()) {
+                        Attr.setMessage("应用正在更新");
+                        Attr.canEncrypt = false;
+                    }
+
+                    // 发送重启提示
+                    sendTipMail();
+
+                    // 更新文件
                     for (AppUpgrade upgrade : upgradeList) {
                         // 更新SQL
                         String sql = upgrade.getSqls();
@@ -105,35 +150,61 @@ public class FileManager extends AbstractRequestor{
                             SqlRunner.execute(sql);
                         }
 
-                        // 更新文件
-                        String rootPath = upgrade.getRootPath();
-                        for (AppUpgradeFile upgradeFile : upgrade.getFiles()) {
-                            String filePath = upgradeFile.getFilePath(),
-                                    writePath = rootPath + File.separator + upgradeFile.getWritePath();
-                            download(filePath, writePath);
-                        }
-
-                        // 下线App
-                        if (Client.offline()) {
-                            Attr.setMessage("应用正在更新");
-                            Attr.canEncrypt = false;
-                        }
-
-                        // 发送重启提示
-                        sendTipMail();
-
-                        // 重启服务器（仅支持Tomcat）
-                        /*if (Attr.props.getBool("auth.upgrade.auto")) {
-                            ServerSniffer sniffer = new ServerSniffer();
-                            sniffer.restartTomcatByService(rootPath);
-                        }*/
-
+                        downloadFile(upgrade);
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
         }
+    }
+
+    private static void downloadFile(AppUpgrade upgrade){
+        String rootPath = upgrade.getRootPath();
+        if (upgrade.getZip()) {
+            AppUpgradeFile upgradeFile = upgrade.getFiles().get(0);
+            if (upgradeFile != null) {
+                String downloadPath = rootPath + File.separator + upgradeFile.getFileName();//downloadZip(filePath, upgradeFile.getFileName(), rootPath);
+                File file = FileUtil.newFile(downloadPath);
+                if (file.exists()) {
+                    ZipUtil.unzip(downloadPath, rootPath, CharsetUtil.CHARSET_GBK);
+                    // 删除压缩文件
+                    FileUtil.del(file);
+                }
+            }
+        } else {
+            for (AppUpgradeFile upgradeFile : upgrade.getFiles()) {
+                String filePath = upgradeFile.getFilePath(),
+                        writePath = rootPath + File.separator + upgradeFile.getWritePath();
+                download(filePath, writePath);
+            }
+        }
+    }
+
+    /**
+     * 检查是否需要重启
+     * @param upgrade
+     * @return
+     */
+    private static boolean checkRestart(AppUpgrade upgrade){
+        boolean restart = false;
+        String rootPath = upgrade.getRootPath();
+        if (upgrade.getZip()) {
+            AppUpgradeFile upgradeFile = upgrade.getFiles().get(0);
+            if (upgradeFile != null) {
+                String filePath = upgradeFile.getFilePath();
+                String downloadPath = downloadZip(filePath, upgradeFile.getFileName(), rootPath);
+                File file = FileUtil.newFile(downloadPath);
+                if (file.exists()) {
+                    restart = validateZipFile(downloadPath);
+                }
+            }
+        } else {
+            for (AppUpgradeFile upgradeFile : upgrade.getFiles()) {
+                restart = validateRestartFile(upgradeFile.getFileName());
+            }
+        }
+        return restart;
     }
 
     /**
@@ -163,6 +234,63 @@ public class FileManager extends AbstractRequestor{
     }
 
     /**
+     * 校验文件是否是需要重启的类型
+     * @param fileName
+     * @return
+     */
+    private static boolean validateRestartFile(String fileName){
+        String type = StrUtil.subAfter(fileName, ".", true);
+        if (ArrayUtil.contains(Attr.FILE_RESTART_TYPE, type)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 校验压缩包内的文件是否是需要重启的类型
+     * @param zipName
+     * @return
+     */
+    private static boolean validateZipFile(String zipName){
+        List<String> list = new ArrayList<>();
+        try {
+            list = readZipFileName(zipName);
+            for (String s : list) {
+                if (validateRestartFile(s)) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            log.info("不支持的中文文件");
+        }
+        return false;
+    }
+
+    /**
+     * 不解压，直接读取压缩包内的文件列表
+     * @param file
+     * @throws Exception
+     */
+    public static List<String> readZipFileName(String file) throws Exception {
+        List<String> fileNameList = new ArrayList<>();
+        ZipFile zf = new ZipFile(file);
+        InputStream in = new BufferedInputStream(new FileInputStream(file));
+        ZipInputStream zin = new ZipInputStream(in);
+        ZipEntry ze;
+        while ((ze = zin.getNextEntry()) != null) {
+            if (!ze.isDirectory()) {
+                System.err.println("file - " + ze.getName() + " : "
+                        + ze.getSize() + " bytes");
+                fileNameList.add(ze.getName());
+            }
+        }
+        zin.closeEntry();
+        zin.close();
+        in.close();
+        return fileNameList;
+    }
+
+    /**
      * 每天检查更新情况
      */
     public static void autoUpgrade(){
@@ -170,6 +298,7 @@ public class FileManager extends AbstractRequestor{
         int minute = RandomUtil.randomInt(1, 59),
                 hour = RandomUtil.randomInt(1,3);
         String cron = minute + " "+ hour +" * * *";
+        //cron = "*/2 * * * *";
 
         Attr.CRON_UPGRADE_ID = CronUtil.schedule(cron, new Task() {
             @Override

@@ -1,21 +1,10 @@
 package com.joauth2;
 
-import java.util.Date;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import javax.servlet.annotation.WebListener;
 import javax.servlet.http.*;
 
-import cn.hutool.core.date.DateUtil;
-import cn.hutool.core.lang.Console;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.cron.CronUtil;
 import cn.hutool.log.Log;
 import cn.hutool.log.LogFactory;
-import cn.hutool.log.StaticLog;
-import cn.hutool.setting.dialect.Props;
-import com.joauth2.upgrade.FileManager;
 
 @WebListener
 public class JOAuthListener implements HttpSessionListener, HttpSessionAttributeListener {
